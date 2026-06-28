@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>MiniDash</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-user-select:none;user-select:none}
+body{background:#0a0a0a;color:#eee;font-family:-apple-system,Segoe UI,Roboto,sans-serif;padding:10px;max-width:480px;margin:0 auto}
+h1{font-size:13px;color:#666;text-align:center;letter-spacing:2px;margin-bottom:8px}
+#conn{text-align:center;margin-bottom:10px}
+#connbtn{padding:12px 32px;border:0;border-radius:10px;background:#2a6;color:#fff;
+         font-size:15px;font-weight:700;letter-spacing:1px}
+#connbtn.dis{background:#a33}
+#connbtn.conn{background:#2a6}
+.tabs{display:flex;gap:8px;margin-bottom:10px}
+.tab{flex:1;padding:10px;text-align:center;background:#141414;border-radius:8px;
+     font-size:13px;letter-spacing:1px;cursor:pointer}
+.tab.on{background:#2a6}
+.status{display:flex;gap:10px;margin-bottom:10px}
+.st{flex:1;background:#141414;border-radius:10px;padding:8px;text-align:center;font-size:12px;letter-spacing:1px}
+.st .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:#e33}
+.st.ok .dot{background:#2c6;box-shadow:0 0 8px #2c6}
+.st .sub{font-size:10px;color:#666;margin-top:3px}
+.inj{text-align:center;font-size:11px;letter-spacing:1px;color:#666;height:14px;margin-bottom:6px}
+.inj.on{color:#2c6}
+.boost{text-align:center;margin-bottom:10px}
+.boost .v{font-size:60px;font-weight:700;line-height:1}
+.boost .u{font-size:12px;color:#666;letter-spacing:2px}
+.row{display:flex;gap:10px;margin-bottom:10px}
+.card{flex:1;background:#141414;border-radius:12px;padding:10px;text-align:center}
+.card .v{font-size:24px;font-weight:600}
+.card .l{font-size:10px;color:#666;letter-spacing:1px;margin-top:2px}
+.primes{display:flex;gap:12px;margin-top:12px}
+.pbtn{flex:1;padding:22px 0;border-radius:14px;border:0;font-size:16px;font-weight:700;
+      color:#fff;background:#333;letter-spacing:1px;touch-action:none;cursor:pointer}
+.pbtn.act{background:#2a6;box-shadow:0 0 18px #2a6}
+.pbtn:disabled{opacity:.35}
+table{width:100%;border-collapse:collapse;margin-top:6px}
+td,th{border:1px solid #2a2a2a;padding:2px;text-align:center;font-size:12px}
+th{color:#888;background:#161616}
+td input{width:100%;background:#0e0e0e;color:#5cf;border:0;text-align:center;font-size:13px;padding:6px 0}
+.save{width:100%;padding:14px;margin-top:10px;border:0;border-radius:10px;
+      background:#2a6;color:#fff;font-size:15px;font-weight:700;cursor:pointer}
+.hint{font-size:10px;color:#555;text-align:center;margin-top:6px}
+.hide{display:none}
+.stale{color:#e33;text-align:center;font-size:12px;height:14px;letter-spacing:1px;margin-bottom:4px}
+</style>
+</head><body>
+<h1>MINI CLUBMAN S &middot; WMI</h1>
+
+<div id="conn">
+  <button id="connbtn" class="dis" onclick="toggleConnect()">CONNECT BLE</button>
+  <div class="hint" id="connhint">Open in Bluefy &middot; tap to connect to MiniDash</div>
+</div>
+
+<div class="tabs">
+  <div class="tab on" id="tabD" onclick="show('D')">DASH</div>
+  <div class="tab"    id="tabT" onclick="show('T')">FLOW TABLE</div>
+</div>
+
+<div id="viewD">
+  <div class="status">
+    <div class="st" id="stSol"><span class="dot"></span>SOLENOID<div class="sub" id="stSolSub">--</div></div>
+    <div class="st" id="stPump"><span class="dot"></span>PUMP<div class="sub" id="stPumpSub">--</div></div>
+  </div>
+  <div class="stale" id="stale"></div>
+  <div class="inj" id="inj">&nbsp;</div>
+  <div class="boost"><div class="v" id="boost">--</div><div class="u">PSI BOOST</div></div>
+  <div class="row">
+    <div class="card"><div class="v" id="rpm">--</div><div class="l">RPM</div></div>
+    <div class="card"><div class="v" id="ped">--</div><div class="l">PEDAL %</div></div>
+  </div>
+  <div class="row">
+    <div class="card"><div class="v" id="cool">--</div><div class="l">COOLANT &deg;F</div></div>
+    <div class="card"><div class="v" id="oil">--</div><div class="l">OIL &deg;F</div></div>
+  </div>
+  <div class="row">
+    <div class="card"><div class="v" id="iat">--</div><div class="l">IAT &deg;F</div></div>
+    <div class="card"><div class="v" id="flow">--</div><div class="l">FLOW cc/min</div></div>
+  </div>
+  <div class="primes">
+    <button class="pbtn" id="bsol"  disabled>SOLENOID<br>PRIME</button>
+    <button class="pbtn" id="bpump" disabled>PUMP<br>PRIME</button>
+  </div>
+  <div class="hint">Hold to prime &middot; releases automatically</div>
+</div>
+
+<div id="viewT" class="hide">
+  <div class="hint">Target flow (cc/min) &middot; rows=boost psi &middot; cols=RPM &middot; max 444</div>
+  <div class="hint" style="color:#fc3;margin-top:4px" id="tblhint">Connect BLE first to load table</div>
+  <table id="ftab"></table>
+  <button class="save" onclick="saveTable()" id="savebtn" disabled>SAVE TABLE TO FLASH</button>
+  <div class="hint" id="savemsg">&nbsp;</div>
+</div>
+
+<script>
+// ===== BLE UUIDs (must match ESP32) =====
+const SVC_UUID   = '4fafc201-1fb5-459e-8fcc-c5c9c3319100';
+const GAUGE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c3319101';
+const CMD_UUID   = '4fafc201-1fb5-459e-8fcc-c5c9c3319102';
+
+const BOOST_ROWS = [10,14,17,20,23,25];
+const RPM_COLS   = [2500,3500,4500,5500,6500];
+
+let device=null, server=null, gaugeChar=null, cmdChar=null;
+let connected=false;
+let solHold=false, pumpHold=false;
+let primeInterval=null;
+
+// ===== Connect / Disconnect =====
+async function toggleConnect(){
+  if(connected){ await disconnect(); return; }
+  try{
+    document.getElementById('connhint').textContent='Scanning...';
+    device=await navigator.bluetooth.requestDevice({
+      filters:[{name:'MiniDash'}],
+      optionalServices:[SVC_UUID]
+    });
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+    server=await device.gatt.connect();
+    const svc=await server.getPrimaryService(SVC_UUID);
+    gaugeChar=await svc.getCharacteristic(GAUGE_UUID);
+    cmdChar  =await svc.getCharacteristic(CMD_UUID);
+    await gaugeChar.startNotifications();
+    gaugeChar.addEventListener('characteristicvaluechanged', onGaugeNotify);
+    onConnected();
+  } catch(e){
+    document.getElementById('connhint').textContent='Failed: '+e.message;
+    console.error(e);
+  }
+}
+
+function onConnected(){
+  connected=true;
+  const btn=document.getElementById('connbtn');
+  btn.textContent='DISCONNECT'; btn.className='conn';
+  document.getElementById('connhint').textContent='Connected to MiniDash';
+  document.getElementById('bsol').disabled=false;
+  document.getElementById('bpump').disabled=false;
+  document.getElementById('savebtn').disabled=false;
+  document.getElementById('tblhint').textContent='Edit cells then save';
+  // start prime heartbeat (50ms, write-without-response is fast)
+  primeInterval=setInterval(sendPrimeCmd,50);
+  loadTable();
+}
+
+function onDisconnected(){
+  connected=false;
+  const btn=document.getElementById('connbtn');
+  btn.textContent='CONNECT BLE'; btn.className='dis';
+  document.getElementById('connhint').textContent='Disconnected — tap to reconnect';
+  document.getElementById('bsol').disabled=true;
+  document.getElementById('bpump').disabled=true;
+  document.getElementById('savebtn').disabled=true;
+  if(primeInterval){ clearInterval(primeInterval); primeInterval=null; }
+  solHold=false; pumpHold=false;
+  document.getElementById('bsol').classList.remove('act');
+  document.getElementById('bpump').classList.remove('act');
+}
+
+async function disconnect(){
+  if(device && device.gatt.connected) device.gatt.disconnect();
+  onDisconnected();
+}
+
+// ===== Gauge notification handler =====
+function onGaugeNotify(e){
+  const d=new DataView(e.target.value.buffer);
+  // unpack packet
+  const boost  = d.getInt16(0,true)/100.0;
+  const rpm    = d.getUint16(2,true);
+  const pedal  = d.getUint8(4);
+  const cool   = d.getUint8(5)-40;
+  const oil    = d.getUint8(6)-40;
+  const iat    = d.getUint8(7)-40;
+  const flow   = d.getUint16(8,true);
+  const duty   = d.getUint8(10);
+  const flags  = d.getUint8(11);
+  const target = d.getUint16(12,true);
+
+  const solOpen   = !!(flags&0x01);
+  const solConn   = !!(flags&0x02);
+  const pumpConn  = !!(flags&0x04);
+  const inj       = !!(flags&0x08);
+  const canStale  = !!(flags&0x10);
+
+  // update UI
+  document.getElementById('stale').textContent = canStale ? 'NO CAN DATA' : '';
+  document.getElementById('boost').textContent = (boost>=0?'+':'')+boost.toFixed(1);
+  document.getElementById('rpm').textContent   = rpm;
+  document.getElementById('ped').textContent   = pedal;
+  document.getElementById('cool').textContent  = cool;
+  document.getElementById('oil').textContent   = oil;
+  document.getElementById('iat').textContent   = iat;
+  document.getElementById('flow').textContent  = flow;
+
+  const stSol=document.getElementById('stSol');
+  const stPump=document.getElementById('stPump');
+  stSol.classList.toggle('ok',solConn);
+  stPump.classList.toggle('ok',pumpConn);
+  document.getElementById('stSolSub').textContent =solConn?(solOpen?'OPEN':'CLOSED'):'OFFLINE';
+  document.getElementById('stPumpSub').textContent=pumpConn?(duty>0?duty+'% duty':'IDLE'):'OFFLINE';
+
+  const injEl=document.getElementById('inj');
+  injEl.textContent=inj?('INJECTING '+target+' cc/min'):'\u00a0';
+  injEl.classList.toggle('on',inj);
+}
+
+// ===== Prime buttons =====
+function sendPrimeCmd(){
+  if(!connected||!cmdChar) return;
+  let cmd=0;
+  if(solHold)  cmd|=0x01;
+  if(pumpHold) cmd|=0x02;
+  // write-without-response: fire and forget, fastest possible
+  cmdChar.writeValueWithoutResponse(new Uint8Array([cmd])).catch(e=>{});
+}
+
+function bindPrime(btn,setter){
+  const on=e=>{e.preventDefault();setter(true);btn.classList.add('act');};
+  const off=e=>{e.preventDefault();setter(false);btn.classList.remove('act');};
+  btn.addEventListener('touchstart',on,{passive:false});
+  btn.addEventListener('touchend',off,{passive:false});
+  btn.addEventListener('touchcancel',off,{passive:false});
+  btn.addEventListener('mousedown',on);
+  btn.addEventListener('mouseup',off);
+  btn.addEventListener('mouseleave',off);
+}
+bindPrime(document.getElementById('bsol'),  v=>solHold=v);
+bindPrime(document.getElementById('bpump'), v=>pumpHold=v);
+
+// ===== Flow table (fetched/saved via BLE... but table is on the pump WiFi server)
+// We use a separate fetch to the ESP32's AP for the table only.
+// This works when the phone is also on MiniDash WiFi, but for BLE-only mode
+// we embed a local editable table with a "send over BLE" button.
+// The table is encoded into a 30-byte BLE write (6x5 = 30 uint8 values, /444*255 scaled).
+// Actually: for simplicity we load/save via direct WiFi fetch to 192.168.4.1
+// when available, else show a notice.
+
+const TABLE_URL='http://192.168.4.1';
+
+async function loadTable(){
+  try{
+    const d=await(await fetch(TABLE_URL+'/table',{cache:'no-store',signal:AbortSignal.timeout(2000)})).json();
+    renderTable(d.t);
+    document.getElementById('tblhint').textContent='Edit cells then save';
+  } catch(e){
+    renderTableDefault();
+    document.getElementById('tblhint').textContent='WiFi not connected — showing defaults';
+  }
+}
+
+function renderTable(data){
+  let h='<tr><th>psi\\rpm</th>';
+  RPM_COLS.forEach(r=>h+='<th>'+r+'</th>'); h+='</tr>';
+  for(let i=0;i<BOOST_ROWS.length;i++){
+    h+='<tr><th>'+BOOST_ROWS[i]+'</th>';
+    for(let j=0;j<RPM_COLS.length;j++)
+      h+='<td><input type="number" min="0" max="444" value="'+(data?data[i][j]:0)+'" id="c'+i+'_'+j+'"></td>';
+    h+='</tr>';
+  }
+  document.getElementById('ftab').innerHTML=h;
+}
+
+function renderTableDefault(){ renderTable(null); }
+
+async function saveTable(){
+  let vals=[];
+  for(let i=0;i<BOOST_ROWS.length;i++){
+    let row=[];
+    for(let j=0;j<RPM_COLS.length;j++){
+      let v=parseFloat(document.getElementById('c'+i+'_'+j).value)||0;
+      row.push(Math.max(0,Math.min(444,v)));
+    }
+    vals.push(row);
+  }
+  try{
+    await fetch(TABLE_URL+'/savetable',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({t:vals}),
+      signal:AbortSignal.timeout(2000)
+    });
+    document.getElementById('savemsg').textContent='Saved.';
+  } catch(e){
+    document.getElementById('savemsg').textContent='Save failed — join MiniDash WiFi first.';
+  }
+  setTimeout(()=>document.getElementById('savemsg').textContent='\u00a0',2500);
+}
+
+// ===== Tab switching =====
+function show(v){
+  document.getElementById('viewD').classList.toggle('hide',v!='D');
+  document.getElementById('viewT').classList.toggle('hide',v!='T');
+  document.getElementById('tabD').classList.toggle('on',v=='D');
+  document.getElementById('tabT').classList.toggle('on',v=='T');
+  if(v=='T') loadTable();
+}
+</script>
+</body></html>

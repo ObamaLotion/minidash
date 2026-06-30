@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>MiniDash</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-user-select:none;user-select:none}
+body{background:#0a0a0a;color:#eee;font-family:-apple-system,Segoe UI,Roboto,sans-serif;
+     padding:10px;max-width:480px;margin:0 auto}
+h1{font-size:13px;color:#666;text-align:center;letter-spacing:2px;margin-bottom:8px}
+#conn{text-align:center;margin-bottom:10px}
+#connbtn{padding:12px 32px;border:0;border-radius:10px;background:#a33;color:#fff;
+         font-size:15px;font-weight:700;letter-spacing:1px;cursor:pointer}
+#connbtn.conn{background:#2a6}
+.tabs{display:flex;gap:8px;margin-bottom:10px}
+.tab{flex:1;padding:10px;text-align:center;background:#141414;border-radius:8px;
+     font-size:13px;letter-spacing:1px;cursor:pointer}
+.tab.on{background:#2a6}
+.status{display:flex;gap:10px;margin-bottom:10px}
+.st{flex:1;background:#141414;border-radius:10px;padding:8px;text-align:center;font-size:12px;letter-spacing:1px}
+.st .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:#e33}
+.st.ok .dot{background:#2c6;box-shadow:0 0 8px #2c6}
+.st .sub{font-size:10px;color:#666;margin-top:3px}
+.inj{text-align:center;font-size:11px;letter-spacing:1px;color:#666;height:14px;margin-bottom:6px}
+.inj.on{color:#2c6}
+.stale{color:#e33;text-align:center;font-size:12px;height:14px;letter-spacing:1px;margin-bottom:4px}
+.boost{text-align:center;margin-bottom:10px}
+.boost .v{font-size:60px;font-weight:700;line-height:1}
+.boost .u{font-size:12px;color:#666;letter-spacing:2px}
+.row{display:flex;gap:10px;margin-bottom:10px}
+.card{flex:1;background:#141414;border-radius:12px;padding:10px;text-align:center}
+.card .v{font-size:24px;font-weight:600}
+.card .l{font-size:10px;color:#666;letter-spacing:1px;margin-top:2px}
+.card .sub{font-size:13px;color:#888;margin-top:3px}
+.graph-wrap{margin-bottom:10px}
+.graph-lbl{font-size:10px;color:#666;letter-spacing:1px;margin-bottom:4px;
+           display:flex;justify-content:space-between}
+.graph-lbl span{color:#888}
+canvas{display:block;border-radius:10px;background:#141414}
+.primes{display:flex;gap:12px;margin-top:4px;margin-bottom:10px}
+.pbtn{flex:1;padding:22px 0;border-radius:14px;border:0;font-size:16px;font-weight:700;
+      color:#fff;background:#333;letter-spacing:1px;touch-action:none;cursor:pointer}
+.pbtn.act{background:#2a6;box-shadow:0 0 18px #2a6}
+.pbtn:disabled{opacity:.35}
+table{width:100%;border-collapse:collapse;margin-top:6px}
+td,th{border:1px solid #2a2a2a;padding:2px;text-align:center;font-size:12px}
+th{color:#888;background:#161616}
+td input{width:100%;background:#0e0e0e;color:#5cf;border:0;text-align:center;font-size:13px;padding:6px 0}
+.save{width:100%;padding:14px;margin-top:10px;border:0;border-radius:10px;
+      background:#2a6;color:#fff;font-size:15px;font-weight:700;cursor:pointer}
+.save:disabled{opacity:.35}
+.hint{font-size:10px;color:#555;text-align:center;margin-top:6px}
+.hide{display:none}
+</style>
+</head><body>
+<h1>MINI CLUBMAN S &middot; WMI</h1>
+
+<div id="conn">
+  <button id="connbtn" onclick="toggleConnect()">CONNECT BLE</button>
+  <div class="hint" id="connhint">Open in Bluefy &middot; tap to connect</div>
+</div>
+
+<div class="tabs">
+  <div class="tab on" id="tabD" onclick="show('D')">DASH</div>
+  <div class="tab"    id="tabT" onclick="show('T')">FLOW TABLE</div>
+</div>
+
+<!-- DASH VIEW -->
+<div id="viewD">
+  <div class="status">
+    <div class="st" id="stSol"><span class="dot"></span>SOLENOID
+      <div class="sub" id="stSolSub">--</div></div>
+    <div class="st" id="stPump"><span class="dot"></span>PUMP
+      <div class="sub" id="stPumpSub">--</div></div>
+  </div>
+  <div class="stale" id="stale"></div>
+  <div class="inj"   id="inj">&nbsp;</div>
+
+  <div class="boost">
+    <div class="v" id="boost">--</div>
+    <div class="u">PSI BOOST</div>
+  </div>
+
+  <div class="row">
+    <div class="card"><div class="v" id="rpm">--</div><div class="l">RPM</div></div>
+    <div class="card"><div class="v" id="ped">--</div><div class="l">PEDAL %</div></div>
+  </div>
+  <div class="row">
+    <div class="card"><div class="v" id="cool">--</div><div class="l">COOLANT &deg;F</div></div>
+    <div class="card"><div class="v" id="oil">--</div><div class="l">OIL &deg;F</div></div>
+  </div>
+  <div class="row">
+    <div class="card"><div class="v" id="iat">--</div><div class="l">IAT &deg;F</div></div>
+    <div class="card">
+      <div class="v" id="flow">--</div>
+      <div class="l">FLOW cc/min</div>
+      <div class="sub" id="psi">-- psi</div>
+    </div>
+  </div>
+
+  <!-- boost graph -->
+  <div class="graph-wrap">
+    <div class="graph-lbl">
+      <span>BOOST psi &mdash; 30s</span>
+      <span id="gBoostVal">--</span>
+    </div>
+    <canvas id="cBoost"></canvas>
+  </div>
+
+  <!-- flow graph -->
+  <div class="graph-wrap">
+    <div class="graph-lbl">
+      <span>FLOW cc/min &mdash; 30s</span>
+      <span id="gFlowVal">--</span>
+    </div>
+    <canvas id="cFlow"></canvas>
+  </div>
+
+  <div class="primes">
+    <button class="pbtn" id="bsol"  disabled>SOLENOID<br>PRIME</button>
+    <button class="pbtn" id="bpump" disabled>PUMP<br>PRIME</button>
+  </div>
+  <div class="hint">Hold to prime &middot; releases automatically</div>
+</div>
+
+<!-- FLOW TABLE VIEW -->
+<div id="viewT" class="hide">
+  <div class="hint">Target flow (cc/min) &middot; rows=boost psi &middot; cols=RPM &middot; max 444</div>
+  <div class="hint" id="tblhint" style="color:#fc3;margin-top:4px">Connect BLE to load table</div>
+  <table id="ftab"></table>
+  <button class="save" id="savebtn" onclick="saveTable()" disabled>SAVE TABLE TO ESP32</button>
+  <div class="hint" id="savemsg">&nbsp;</div>
+</div>
+
+<script>
+// ===== BLE =====
+const SVC   = '4fafc201-1fb5-459e-8fcc-c5c9c3319100';
+const GAUGE = '4fafc201-1fb5-459e-8fcc-c5c9c3319101';
+const CMD   = '4fafc201-1fb5-459e-8fcc-c5c9c3319102';
+const TBLR  = '4fafc201-1fb5-459e-8fcc-c5c9c3319103';
+const TBLW  = '4fafc201-1fb5-459e-8fcc-c5c9c3319104';
+const BOOST_ROWS=[10,14,17,20,23,25], RPM_COLS=[2500,3500,4500,5500,6500];
+
+let device=null,gattServer=null,gaugeChar=null,cmdChar=null,tblRChar=null,tblWChar=null;
+let connected=false, solHold=false, pumpHold=false, primeIv=null;
+
+// ===== graph state =====
+const HISTORY_S  = 30;
+const SAMPLE_HZ  = 20;      // matches BLE notify rate
+const MAX_PTS    = HISTORY_S * SAMPLE_HZ;
+let boostHist=[], flowHist=[];
+
+function pushHistory(arr, val){ arr.push(val); if(arr.length>MAX_PTS) arr.shift(); }
+
+// ===== canvas sizing =====
+function sizeCanvas(id){
+  const c=document.getElementById(id);
+  const dpr=window.devicePixelRatio||1;
+  const w=c.parentElement.clientWidth;
+  c.style.width=w+'px'; c.style.height='80px';
+  c.width=w*dpr; c.height=80*dpr;
+  return c;
+}
+
+function drawGraph(id, hist, color, maxVal, labelId, currentVal){
+  const c=document.getElementById(id);
+  const dpr=window.devicePixelRatio||1;
+  const W=c.width/dpr, H=c.height/dpr;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
+  ctx.scale(dpr,dpr);
+  // subtle grid
+  ctx.strokeStyle='#1e1e1e'; ctx.lineWidth=1;
+  for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(0,H*i/4); ctx.lineTo(W,H*i/4); ctx.stroke(); }
+  // zero line for boost
+  if(maxVal===25){
+    const zy=H*(1-0/maxVal);
+    ctx.strokeStyle='#333'; ctx.beginPath(); ctx.moveTo(0,zy); ctx.lineTo(W,zy); ctx.stroke();
+  }
+  if(hist.length<2){ ctx.setTransform(1,0,0,1,0,0); return; }
+  const pts=hist;
+  ctx.beginPath();
+  pts.forEach((v,i)=>{
+    const x=i/(MAX_PTS-1)*W;
+    const y=H-Math.max(0,Math.min(H,v/maxVal*H));
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke();
+  // fill
+  const last=pts.length-1;
+  ctx.lineTo(last/(MAX_PTS-1)*W,H); ctx.lineTo(0,H); ctx.closePath();
+  ctx.fillStyle=color+'28'; ctx.fill();
+  ctx.setTransform(1,0,0,1,0,0);
+  // update current value label
+  if(labelId) document.getElementById(labelId).textContent=
+    currentVal!==null?(maxVal===25?(currentVal>=0?'+':'')+currentVal.toFixed(1):Math.round(currentVal)):'--';
+}
+
+function redrawGraphs(boost, flow){
+  drawGraph('cBoost', boostHist, '#3cf', 25,  'gBoostVal', boost);
+  drawGraph('cFlow',  flowHist,  '#2a6', 444, 'gFlowVal',  flow);
+}
+
+// ===== connect =====
+async function toggleConnect(){
+  if(connected){ await disconnect(); return; }
+  try{
+    hint('Scanning...');
+    device=await navigator.bluetooth.requestDevice({
+      filters:[{name:'MiniDash'}], optionalServices:[SVC]});
+    device.addEventListener('gattserverdisconnected', onDis);
+    gattServer=await device.gatt.connect();
+    const svc=await gattServer.getPrimaryService(SVC);
+    gaugeChar=await svc.getCharacteristic(GAUGE);
+    cmdChar  =await svc.getCharacteristic(CMD);
+    tblRChar =await svc.getCharacteristic(TBLR);
+    tblWChar =await svc.getCharacteristic(TBLW);
+    await gaugeChar.startNotifications();
+    gaugeChar.addEventListener('characteristicvaluechanged', onGauge);
+    onCon();
+  } catch(e){ hint('Failed: '+e.message); }
+}
+function onCon(){
+  connected=true;
+  document.getElementById('connbtn').textContent='DISCONNECT';
+  document.getElementById('connbtn').className='conn';
+  hint('Connected to MiniDash');
+  document.getElementById('bsol').disabled=false;
+  document.getElementById('bpump').disabled=false;
+  document.getElementById('savebtn').disabled=false;
+  document.getElementById('tblhint').textContent='Edit cells then save';
+  primeIv=setInterval(sendCmd,50);
+  sizeCanvas('cBoost'); sizeCanvas('cFlow');
+  loadTable();
+}
+function onDis(){
+  connected=false;
+  document.getElementById('connbtn').textContent='CONNECT BLE';
+  document.getElementById('connbtn').className='';
+  hint('Disconnected — tap to reconnect');
+  ['bsol','bpump'].forEach(id=>{ document.getElementById(id).disabled=true; document.getElementById(id).classList.remove('act'); });
+  document.getElementById('savebtn').disabled=true;
+  if(primeIv){clearInterval(primeIv);primeIv=null;}
+  solHold=false; pumpHold=false;
+}
+async function disconnect(){ if(device&&device.gatt.connected) device.gatt.disconnect(); onDis(); }
+function hint(t){ document.getElementById('connhint').textContent=t; }
+
+// ===== gauge notify =====
+function onGauge(e){
+  const d=new DataView(e.target.value.buffer);
+  const boost =d.getInt16(0,true)/100.0;
+  const rpm   =d.getUint16(2,true);
+  const pedal =d.getUint8(4);
+  const cool  =d.getUint8(5)-40;
+  const oil   =d.getUint8(6)-40;
+  const iat   =d.getUint8(7)-40;
+  const flow  =d.getUint16(8,true);
+  const duty  =d.getUint8(10);
+  const flags =d.getUint8(11);
+  const target=d.getUint16(12,true);
+  const psi   =d.getUint16(14,true);   // pump pressure
+  const solOpen =!!(flags&0x01), solConn =!!(flags&0x02);
+  const pumpConn=!!(flags&0x04), inj    =!!(flags&0x08);
+  const stale   =!!(flags&0x10);
+
+  // gauges
+  document.getElementById('stale').textContent=stale?'NO CAN DATA':'';
+  document.getElementById('boost').textContent=(boost>=0?'+':'')+boost.toFixed(1);
+  document.getElementById('rpm').textContent=rpm;
+  document.getElementById('ped').textContent=pedal;
+  document.getElementById('cool').textContent=cool;
+  document.getElementById('oil').textContent=oil;
+  document.getElementById('iat').textContent=iat;
+  document.getElementById('flow').textContent=flow;
+  document.getElementById('psi').textContent=psi+' psi';
+
+  // node status
+  document.getElementById('stSol').classList.toggle('ok',solConn);
+  document.getElementById('stPump').classList.toggle('ok',pumpConn);
+  document.getElementById('stSolSub').textContent=solConn?(solOpen?'OPEN':'CLOSED'):'OFFLINE';
+  document.getElementById('stPumpSub').textContent=pumpConn?(duty>0?duty+'% duty':'IDLE'):'OFFLINE';
+
+  // injecting
+  const ie=document.getElementById('inj');
+  ie.textContent=inj?('INJECTING '+target+' cc/min'):'\u00a0';
+  ie.classList.toggle('on',inj);
+
+  // graphs — only update on dash tab
+  if(!document.getElementById('viewD').classList.contains('hide')){
+    pushHistory(boostHist, boost);
+    pushHistory(flowHist,  flow);
+    redrawGraphs(boost, flow);
+  }
+}
+
+// ===== prime =====
+function sendCmd(){
+  if(!connected||!cmdChar) return;
+  let c=0; if(solHold) c|=0x01; if(pumpHold) c|=0x02;
+  cmdChar.writeValueWithoutResponse(new Uint8Array([c])).catch(()=>{});
+}
+function bindPrime(btn,setter){
+  const on=e=>{e.preventDefault();setter(true);btn.classList.add('act');};
+  const off=e=>{e.preventDefault();setter(false);btn.classList.remove('act');};
+  btn.addEventListener('touchstart',on,{passive:false});
+  btn.addEventListener('touchend',off,{passive:false});
+  btn.addEventListener('touchcancel',off,{passive:false});
+  btn.addEventListener('mousedown',on);
+  btn.addEventListener('mouseup',off);
+  btn.addEventListener('mouseleave',off);
+}
+bindPrime(document.getElementById('bsol'),  v=>solHold=v);
+bindPrime(document.getElementById('bpump'), v=>pumpHold=v);
+
+// ===== flow table over BLE =====
+function unscale(v){ return Math.round(v/255*444); }
+function scale(f)  { return Math.round(Math.max(0,Math.min(444,f))/444*255); }
+
+async function loadTable(){
+  if(!tblRChar){ renderTable(null); return; }
+  try{
+    const val=await tblRChar.readValue();
+    const raw=new Uint8Array(val.buffer);
+    const t=[]; for(let i=0;i<6;i++){ const r=[]; for(let j=0;j<5;j++) r.push(unscale(raw[i*5+j])); t.push(r); }
+    renderTable(t);
+    document.getElementById('tblhint').textContent='Edit cells then tap save';
+  } catch(e){ renderTable(null); document.getElementById('tblhint').textContent='Load failed: '+e.message; }
+}
+
+function renderTable(data){
+  let h='<tr><th>psi\\rpm</th>'; RPM_COLS.forEach(r=>h+='<th>'+r+'</th>'); h+='</tr>';
+  for(let i=0;i<BOOST_ROWS.length;i++){
+    h+='<tr><th>'+BOOST_ROWS[i]+'</th>';
+    for(let j=0;j<RPM_COLS.length;j++)
+      h+='<td><input type="number" min="0" max="444" value="'+(data?data[i][j]:0)+'" id="c'+i+'_'+j+'"></td>';
+    h+='</tr>';
+  }
+  document.getElementById('ftab').innerHTML=h;
+}
+
+async function saveTable(){
+  if(!tblWChar) return;
+  const buf=new Uint8Array(30);
+  for(let i=0;i<6;i++) for(let j=0;j<5;j++){
+    buf[i*5+j]=scale(parseFloat(document.getElementById('c'+i+'_'+j).value)||0);
+  }
+  try{
+    await tblWChar.writeValue(buf);
+    document.getElementById('savemsg').textContent='Saved to ESP32.';
+  } catch(e){ document.getElementById('savemsg').textContent='Failed: '+e.message; }
+  setTimeout(()=>document.getElementById('savemsg').textContent='\u00a0',2500);
+}
+
+// ===== tabs =====
+function show(v){
+  document.getElementById('viewD').classList.toggle('hide',v!='D');
+  document.getElementById('viewT').classList.toggle('hide',v!='T');
+  document.getElementById('tabD').classList.toggle('on',v=='D');
+  document.getElementById('tabT').classList.toggle('on',v=='T');
+  if(v=='T') loadTable();
+  if(v=='D'){ sizeCanvas('cBoost'); sizeCanvas('cFlow'); redrawGraphs(null,null); }
+}
+
+// size canvases on load
+window.addEventListener('load',()=>{ sizeCanvas('cBoost'); sizeCanvas('cFlow'); });
+window.addEventListener('resize',()=>{ sizeCanvas('cBoost'); sizeCanvas('cFlow'); redrawGraphs(null,null); });
+</script>
+</body></html>
